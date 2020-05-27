@@ -46,6 +46,7 @@ const {DefaultValue} = require('./core/Recoil_Node');
 const {RecoilRoot} = require('./components/Recoil_RecoilRoot.react');
 const {isRecoilValue} = require('./core/Recoil_RecoilValue');
 const selector = require('./recoil_values/Recoil_selector');
+const selectorFamily = require('./recoil_values/Recoil_selectorFamily');
 
 module.exports = {
   // Types
@@ -57,6 +58,7 @@ module.exports = {
   // RecoilValues
   atom,
   selector,
+  selectorFamily,
 
   // Hooks that accept RecoilValues
   useRecoilValue,
