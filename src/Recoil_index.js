@@ -30,6 +30,7 @@ export type {
 } from './core/Recoil_RecoilValue';
 
 const atom = require('./recoil_values/Recoil_atom');
+const atomFamily = require('./recoil_values/Recoil_atomFamily');
 const {
   useRecoilCallback,
   useRecoilState,
@@ -57,6 +58,7 @@ module.exports = {
 
   // RecoilValues
   atom,
+  atomFamily,
   selector,
   selectorFamily,
 

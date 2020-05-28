@@ -139,16 +139,17 @@ var Recoil_RecoilValueClasses = {
   Recoil_RecoilValueClasses_1 = Recoil_RecoilValueClasses.AbstractRecoilValue,
   Recoil_RecoilValueClasses_2 = Recoil_RecoilValueClasses.RecoilState,
   Recoil_RecoilValueClasses_3 = Recoil_RecoilValueClasses.RecoilValueReadOnly;
-var n,
-  require$$1 =
-    ((n = Object.freeze({
-      __proto__: null,
-      AbstractRecoilValue: Recoil_RecoilValueClasses_1,
-      RecoilState: Recoil_RecoilValueClasses_2,
-      RecoilValueReadOnly: Recoil_RecoilValueClasses_3,
-    })) &&
-      n.default) ||
-    n;
+function getCjsExportFromNamespace(n) {
+  return (n && n.default) || n;
+}
+var require$$1 = getCjsExportFromNamespace(
+  Object.freeze({
+    __proto__: null,
+    AbstractRecoilValue: Recoil_RecoilValueClasses_1,
+    RecoilState: Recoil_RecoilValueClasses_2,
+    RecoilValueReadOnly: Recoil_RecoilValueClasses_3,
+  }),
+);
 class DefaultValue {}
 const DEFAULT_VALUE = new DefaultValue();
 class RecoilValueNotReady extends Error {
@@ -953,6 +954,263 @@ function atom(options) {
       })({...restOptions, default: optionsDefault});
 }
 var Recoil_atom = atom;
+var Recoil_stableStringify = function (x, opt) {
+  window.performance && window.performance.now();
+  const str = (function stringify(x, opt, key) {
+    if ('string' == typeof x && !x.includes('"') && !x.includes('\\'))
+      return `"${x}"`;
+    switch (typeof x) {
+      case 'undefined':
+        return '';
+      case 'boolean':
+        return x ? 'true' : 'false';
+      case 'number':
+      case 'symbol':
+        return String(x);
+      case 'string':
+        return JSON.stringify(x);
+      case 'function':
+        if (!0 !== (null == opt ? void 0 : opt.allowFunctions))
+          throw new Error(
+            'Attempt to serialize function in a Recoil cache key',
+          );
+        return `__FUNCTION(${x.name})__`;
+    }
+    return null === x
+      ? 'null'
+      : 'object' != typeof x
+      ? null !== (_JSON$stringify = JSON.stringify(x)) &&
+        void 0 !== _JSON$stringify
+        ? _JSON$stringify
+        : ''
+      : Recoil_isPromise(x)
+      ? '__PROMISE__'
+      : Array.isArray(x)
+      ? `[${x.map((v, i) => stringify(v, opt, i.toString()))}]`
+      : 'function' == typeof x.toJSON
+      ? stringify(x.toJSON(key), opt, key)
+      : x instanceof Map
+      ? stringify(
+          Array.from(x).reduce(
+            (obj, [k, v]) => ({
+              ...obj,
+              ['string' == typeof k ? k : stringify(k, opt)]: v,
+            }),
+            {},
+          ),
+          opt,
+          key,
+        )
+      : x instanceof Set
+      ? stringify(
+          Array.from(x).sort((a, b) =>
+            stringify(a, opt).localeCompare(stringify(b, opt)),
+          ),
+          opt,
+          key,
+        )
+      : null != x[Symbol.iterator] && 'function' == typeof x[Symbol.iterator]
+      ? stringify(Array.from(x), opt, key)
+      : `{${Object.keys(x)
+          .filter(key => void 0 !== x[key])
+          .sort()
+          .map(key => `${stringify(key, opt)}:${stringify(x[key], opt, key)}`)
+          .join(',')}}`;
+    var _JSON$stringify;
+  })(x, null != opt ? opt : {allowFunctions: void 0});
+  return window.performance && window.performance.now(), str;
+};
+var Recoil_cacheWithValueEquality = function () {
+  const map = new Map(),
+    cache = {
+      get: key => map.get(Recoil_stableStringify(key)),
+      set: (key, value) => (map.set(Recoil_stableStringify(key), value), cache),
+      map: map,
+    };
+  return cache;
+};
+let nextIndex = 0;
+var Recoil_selectorFamily = function (options) {
+    var _options$cacheImpleme, _options$cacheImpleme2;
+    let selectorCache =
+      null !==
+        (_options$cacheImpleme =
+          null ===
+            (_options$cacheImpleme2 =
+              options.cacheImplementationForParams_UNSTABLE) ||
+          void 0 === _options$cacheImpleme2
+            ? void 0
+            : _options$cacheImpleme2.call(options)) &&
+      void 0 !== _options$cacheImpleme
+        ? _options$cacheImpleme
+        : Recoil_cacheWithValueEquality();
+    return params => {
+      var _stableStringify, _options$cacheImpleme3;
+      const cachedSelector = selectorCache.get(params);
+      if (null != cachedSelector) return cachedSelector;
+      const myKey = `${options.key}__selectorFamily/${
+          null !==
+            (_stableStringify = Recoil_stableStringify(params, {
+              allowFunctions: !0,
+            })) && void 0 !== _stableStringify
+            ? _stableStringify
+            : 'void'
+        }/${nextIndex++}`,
+        myGet = callbacks => options.get(params)(callbacks),
+        myCacheImplementation =
+          null ===
+            (_options$cacheImpleme3 = options.cacheImplementation_UNSTABLE) ||
+          void 0 === _options$cacheImpleme3
+            ? void 0
+            : _options$cacheImpleme3.call(options);
+      let newSelector;
+      if (null != options.set) {
+        const set = options.set;
+        newSelector = Recoil_selector({
+          key: myKey,
+          get: myGet,
+          set: (callbacks, newValue) => set(params)(callbacks, newValue),
+          cacheImplementation_UNSTABLE: myCacheImplementation,
+          dangerouslyAllowMutability: options.dangerouslyAllowMutability,
+        });
+      } else
+        newSelector = Recoil_selector({
+          key: myKey,
+          get: myGet,
+          cacheImplementation_UNSTABLE: myCacheImplementation,
+          dangerouslyAllowMutability: options.dangerouslyAllowMutability,
+        });
+      return (
+        (selectorCache = selectorCache.set(params, newSelector)), newSelector
+      );
+    };
+  },
+  ParameterizedAtomTaggedValue_DEPRECATED = getCjsExportFromNamespace(
+    Object.freeze({__proto__: null}),
+  );
+const {
+  DEFAULT_VALUE: DEFAULT_VALUE$3,
+  DefaultValue: DefaultValue$2,
+} = Recoil_Node;
+function isSuperset(setA, setB) {
+  return Recoil_everySet(setB, b => setA.has(b));
+}
+const pick = (object, chosenKeys) =>
+  Array.from(chosenKeys).reduce(
+    (obj, key) => ({...obj, [key]: object[key]}),
+    {},
+  );
+function mapPersistenceSettings_DEPRECATED(settings) {
+  if (null == settings) return;
+  const {...passthrough} = settings;
+  return {
+    ...passthrough,
+    validator: storedValue =>
+      storedValue instanceof ParameterizedAtomTaggedValue_DEPRECATED
+        ? new ParameterizedAtomTaggedValue_DEPRECATED(
+            storedValue.value
+              .filter(
+                ([keys, map]) => keys instanceof Set && map instanceof Map,
+              )
+              .map(([keys, map]) => [
+                keys,
+                Array.from(map.entries()).reduce((acc, [k, v]) => {
+                  const validatedValue = passthrough.validator(
+                    v,
+                    DEFAULT_VALUE$3,
+                  );
+                  return (
+                    validatedValue instanceof DefaultValue$2 ||
+                      acc.set(k, validatedValue),
+                    acc
+                  );
+                }, new Map()),
+              ]),
+          )
+        : passthrough.validator(storedValue, DEFAULT_VALUE$3),
+  };
+}
+var Recoil_atomFamily = function (options) {
+  let atomCache = Recoil_cacheWithValueEquality();
+  const legacyAtomOptions = {
+    key: options.key,
+    default: DEFAULT_VALUE$3,
+    persistence_UNSTABLE: mapPersistenceSettings_DEPRECATED(
+      options.persistence_UNSTABLE,
+    ),
+  };
+  let legacyAtom;
+  legacyAtom = Recoil_atom(legacyAtomOptions);
+  const atomFamilyDefault = Recoil_selectorFamily({
+    key: options.key + '__atomFamily/Default',
+    get: param => ({get: get}) => {
+      const legacyValue = get(
+        'function' == typeof legacyAtom ? legacyAtom(param) : legacyAtom,
+      );
+      if (!(legacyValue instanceof DefaultValue$2)) {
+        const upgradedValue = (function (baseValue, parameter) {
+          if (!(baseValue instanceof ParameterizedAtomTaggedValue_DEPRECATED))
+            return baseValue;
+          if (
+            'object' != typeof parameter ||
+            null == parameter ||
+            Array.isArray(parameter)
+          )
+            return DEFAULT_VALUE$3;
+          const entries = baseValue.value,
+            parameterKeys = new Set(Object.keys(parameter));
+          for (const [entryParameterKeys, entryMap] of entries)
+            if (isSuperset(parameterKeys, entryParameterKeys)) {
+              const contextOrSubcontext =
+                  parameterKeys.size === entryParameterKeys.size
+                    ? parameter
+                    : pick(parameter, entryParameterKeys),
+                value = entryMap.get(
+                  Recoil_stableStringify(contextOrSubcontext),
+                );
+              if (void 0 !== value) return value;
+            }
+          return DEFAULT_VALUE$3;
+        })(legacyValue, param);
+        if (!(upgradedValue instanceof DefaultValue$2)) return upgradedValue;
+      }
+      return 'function' == typeof options.default
+        ? options.default(param)
+        : options.default;
+    },
+    dangerouslyAllowMutability: options.dangerouslyAllowMutability,
+  });
+  return params => {
+    var _stableStringify;
+    const cachedAtom = atomCache.get(params);
+    if (null != cachedAtom) return cachedAtom;
+    const newAtom = Recoil_atom({
+      key: `${options.key}__${
+        null !== (_stableStringify = Recoil_stableStringify(params)) &&
+        void 0 !== _stableStringify
+          ? _stableStringify
+          : 'void'
+      }`,
+      default: atomFamilyDefault(params),
+      scopeRules_APPEND_ONLY_READ_THE_DOCS:
+        ((scopeRules = options.scopeRules_APPEND_ONLY_READ_THE_DOCS),
+        (param = params),
+        null == scopeRules
+          ? void 0
+          : scopeRules.map(rule =>
+              Array.isArray(rule)
+                ? rule.map(entry =>
+                    'function' == typeof entry ? entry(param) : entry,
+                  )
+                : rule,
+            )),
+      persistence_UNSTABLE: options.persistence_UNSTABLE,
+      dangerouslyAllowMutability: options.dangerouslyAllowMutability,
+    });
+    var scopeRules, param;
+    return (atomCache = atomCache.set(params, newAtom)), newAtom;
+  };
+};
 var Recoil_Queue = {
   enqueueExecution: function (s, f) {
     f();
@@ -1168,7 +1426,7 @@ const {
     setNodeValue: setNodeValue$4,
   } = Recoil_FunctionalCore,
   {
-    DEFAULT_VALUE: DEFAULT_VALUE$3,
+    DEFAULT_VALUE: DEFAULT_VALUE$4,
     RecoilValueNotReady: RecoilValueNotReady$2,
     getNode: getNode$2,
     nodes: nodes$1,
@@ -1318,7 +1576,7 @@ function useInterface() {
         getSetRecoilState: useSetRecoilState,
         getResetRecoilState: function (recoilState) {
           return () =>
-            setRecoilValue$1(storeRef.current, recoilState, DEFAULT_VALUE$3);
+            setRecoilValue$1(storeRef.current, recoilState, DEFAULT_VALUE$4);
         },
       };
     }, [recoilValuesUsed, storeRef])
@@ -1385,7 +1643,7 @@ var Recoil_Hooks = {
           setRecoilValue$1(storeRef.current, recoilState, newValue);
         }
         function reset(recoilState) {
-          setRecoilValue$1(storeRef.current, recoilState, DEFAULT_VALUE$3);
+          setRecoilValue$1(storeRef.current, recoilState, DEFAULT_VALUE$4);
         }
         let ret = SENTINEL;
         return (
@@ -1566,137 +1824,6 @@ var Recoil_Hooks = {
     };
   },
 };
-var Recoil_stableStringify = function (x, opt) {
-  window.performance && window.performance.now();
-  const str = (function stringify(x, opt, key) {
-    if ('string' == typeof x && !x.includes('"') && !x.includes('\\'))
-      return `"${x}"`;
-    switch (typeof x) {
-      case 'undefined':
-        return '';
-      case 'boolean':
-        return x ? 'true' : 'false';
-      case 'number':
-      case 'symbol':
-        return String(x);
-      case 'string':
-        return JSON.stringify(x);
-      case 'function':
-        if (!0 !== (null == opt ? void 0 : opt.allowFunctions))
-          throw new Error(
-            'Attempt to serialize function in a Recoil cache key',
-          );
-        return `__FUNCTION(${x.name})__`;
-    }
-    return null === x
-      ? 'null'
-      : 'object' != typeof x
-      ? null !== (_JSON$stringify = JSON.stringify(x)) &&
-        void 0 !== _JSON$stringify
-        ? _JSON$stringify
-        : ''
-      : Recoil_isPromise(x)
-      ? '__PROMISE__'
-      : Array.isArray(x)
-      ? `[${x.map((v, i) => stringify(v, opt, i.toString()))}]`
-      : 'function' == typeof x.toJSON
-      ? stringify(x.toJSON(key), opt, key)
-      : x instanceof Map
-      ? stringify(
-          Array.from(x).reduce(
-            (obj, [k, v]) => ({
-              ...obj,
-              ['string' == typeof k ? k : stringify(k, opt)]: v,
-            }),
-            {},
-          ),
-          opt,
-          key,
-        )
-      : x instanceof Set
-      ? stringify(
-          Array.from(x).sort((a, b) =>
-            stringify(a, opt).localeCompare(stringify(b, opt)),
-          ),
-          opt,
-          key,
-        )
-      : null != x[Symbol.iterator] && 'function' == typeof x[Symbol.iterator]
-      ? stringify(Array.from(x), opt, key)
-      : `{${Object.keys(x)
-          .filter(key => void 0 !== x[key])
-          .sort()
-          .map(key => `${stringify(key, opt)}:${stringify(x[key], opt, key)}`)
-          .join(',')}}`;
-    var _JSON$stringify;
-  })(x, null != opt ? opt : {allowFunctions: void 0});
-  return window.performance && window.performance.now(), str;
-};
-var Recoil_cacheWithValueEquality = function () {
-  const map = new Map(),
-    cache = {
-      get: key => map.get(Recoil_stableStringify(key)),
-      set: (key, value) => (map.set(Recoil_stableStringify(key), value), cache),
-      map: map,
-    };
-  return cache;
-};
-let nextIndex = 0;
-var Recoil_selectorFamily = function (options) {
-  var _options$cacheImpleme, _options$cacheImpleme2;
-  let selectorCache =
-    null !==
-      (_options$cacheImpleme =
-        null ===
-          (_options$cacheImpleme2 =
-            options.cacheImplementationForParams_UNSTABLE) ||
-        void 0 === _options$cacheImpleme2
-          ? void 0
-          : _options$cacheImpleme2.call(options)) &&
-    void 0 !== _options$cacheImpleme
-      ? _options$cacheImpleme
-      : Recoil_cacheWithValueEquality();
-  return params => {
-    var _stableStringify, _options$cacheImpleme3;
-    const cachedSelector = selectorCache.get(params);
-    if (null != cachedSelector) return cachedSelector;
-    const myKey = `${options.key}__selectorFamily/${
-        null !==
-          (_stableStringify = Recoil_stableStringify(params, {
-            allowFunctions: !0,
-          })) && void 0 !== _stableStringify
-          ? _stableStringify
-          : 'void'
-      }/${nextIndex++}`,
-      myGet = callbacks => options.get(params)(callbacks),
-      myCacheImplementation =
-        null ===
-          (_options$cacheImpleme3 = options.cacheImplementation_UNSTABLE) ||
-        void 0 === _options$cacheImpleme3
-          ? void 0
-          : _options$cacheImpleme3.call(options);
-    let newSelector;
-    if (null != options.set) {
-      const set = options.set;
-      newSelector = Recoil_selector({
-        key: myKey,
-        get: myGet,
-        set: (callbacks, newValue) => set(params)(callbacks, newValue),
-        cacheImplementation_UNSTABLE: myCacheImplementation,
-        dangerouslyAllowMutability: options.dangerouslyAllowMutability,
-      });
-    } else
-      newSelector = Recoil_selector({
-        key: myKey,
-        get: myGet,
-        cacheImplementation_UNSTABLE: myCacheImplementation,
-        dangerouslyAllowMutability: options.dangerouslyAllowMutability,
-      });
-    return (
-      (selectorCache = selectorCache.set(params, newSelector)), newSelector
-    );
-  };
-};
 const {
     useRecoilCallback: useRecoilCallback$1,
     useRecoilState: useRecoilState$1,
@@ -1709,13 +1836,14 @@ const {
     useTransactionObservation: useTransactionObservation$1,
     useTransactionSubscription: useTransactionSubscription$1,
   } = Recoil_Hooks,
-  {DefaultValue: DefaultValue$2} = Recoil_Node,
+  {DefaultValue: DefaultValue$3} = Recoil_Node,
   {RecoilRoot: RecoilRoot$1} = Recoil_RecoilRoot_react,
   {isRecoilValue: isRecoilValue$3} = Recoil_RecoilValue;
 var Recoil_index = {
-    DefaultValue: DefaultValue$2,
+    DefaultValue: DefaultValue$3,
     RecoilRoot: RecoilRoot$1,
     atom: Recoil_atom,
+    atomFamily: Recoil_atomFamily,
     selector: Recoil_selector,
     selectorFamily: Recoil_selectorFamily,
     useRecoilValue: useRecoilValue$1,
@@ -1733,33 +1861,35 @@ var Recoil_index = {
   Recoil_index_1 = Recoil_index.DefaultValue,
   Recoil_index_2 = Recoil_index.RecoilRoot,
   Recoil_index_3 = Recoil_index.atom,
-  Recoil_index_4 = Recoil_index.selector,
-  Recoil_index_5 = Recoil_index.selectorFamily,
-  Recoil_index_6 = Recoil_index.useRecoilValue,
-  Recoil_index_7 = Recoil_index.useRecoilValueLoadable,
-  Recoil_index_8 = Recoil_index.useRecoilState,
-  Recoil_index_9 = Recoil_index.useRecoilStateLoadable,
-  Recoil_index_10 = Recoil_index.useSetRecoilState,
-  Recoil_index_11 = Recoil_index.useResetRecoilState,
-  Recoil_index_12 = Recoil_index.useRecoilCallback,
-  Recoil_index_13 = Recoil_index.useTransactionObservation_UNSTABLE,
-  Recoil_index_14 = Recoil_index.useTransactionSubscription_UNSTABLE,
-  Recoil_index_15 = Recoil_index.useSetUnvalidatedAtomValues_UNSTABLE,
-  Recoil_index_16 = Recoil_index.isRecoilValue;
+  Recoil_index_4 = Recoil_index.atomFamily,
+  Recoil_index_5 = Recoil_index.selector,
+  Recoil_index_6 = Recoil_index.selectorFamily,
+  Recoil_index_7 = Recoil_index.useRecoilValue,
+  Recoil_index_8 = Recoil_index.useRecoilValueLoadable,
+  Recoil_index_9 = Recoil_index.useRecoilState,
+  Recoil_index_10 = Recoil_index.useRecoilStateLoadable,
+  Recoil_index_11 = Recoil_index.useSetRecoilState,
+  Recoil_index_12 = Recoil_index.useResetRecoilState,
+  Recoil_index_13 = Recoil_index.useRecoilCallback,
+  Recoil_index_14 = Recoil_index.useTransactionObservation_UNSTABLE,
+  Recoil_index_15 = Recoil_index.useTransactionSubscription_UNSTABLE,
+  Recoil_index_16 = Recoil_index.useSetUnvalidatedAtomValues_UNSTABLE,
+  Recoil_index_17 = Recoil_index.isRecoilValue;
 (exports.DefaultValue = Recoil_index_1),
   (exports.RecoilRoot = Recoil_index_2),
   (exports.atom = Recoil_index_3),
+  (exports.atomFamily = Recoil_index_4),
   (exports.default = Recoil_index),
-  (exports.isRecoilValue = Recoil_index_16),
-  (exports.selector = Recoil_index_4),
-  (exports.selectorFamily = Recoil_index_5),
-  (exports.useRecoilCallback = Recoil_index_12),
-  (exports.useRecoilState = Recoil_index_8),
-  (exports.useRecoilStateLoadable = Recoil_index_9),
-  (exports.useRecoilValue = Recoil_index_6),
-  (exports.useRecoilValueLoadable = Recoil_index_7),
-  (exports.useResetRecoilState = Recoil_index_11),
-  (exports.useSetRecoilState = Recoil_index_10),
-  (exports.useSetUnvalidatedAtomValues_UNSTABLE = Recoil_index_15),
-  (exports.useTransactionObservation_UNSTABLE = Recoil_index_13),
-  (exports.useTransactionSubscription_UNSTABLE = Recoil_index_14);
+  (exports.isRecoilValue = Recoil_index_17),
+  (exports.selector = Recoil_index_5),
+  (exports.selectorFamily = Recoil_index_6),
+  (exports.useRecoilCallback = Recoil_index_13),
+  (exports.useRecoilState = Recoil_index_9),
+  (exports.useRecoilStateLoadable = Recoil_index_10),
+  (exports.useRecoilValue = Recoil_index_7),
+  (exports.useRecoilValueLoadable = Recoil_index_8),
+  (exports.useResetRecoilState = Recoil_index_12),
+  (exports.useSetRecoilState = Recoil_index_11),
+  (exports.useSetUnvalidatedAtomValues_UNSTABLE = Recoil_index_16),
+  (exports.useTransactionObservation_UNSTABLE = Recoil_index_14),
+  (exports.useTransactionSubscription_UNSTABLE = Recoil_index_15);
